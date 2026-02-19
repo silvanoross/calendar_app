@@ -243,8 +243,8 @@ else:
 # ── Event details ──────────────────────────────────────────────────────────────
 st.divider()
 st.markdown('<div class="section-label">Event Details</div>', unsafe_allow_html=True)
-
-event_title = st.text_input("Event title *", placeholder="e.g. Team Standup", label_visibility="collapsed")
+st.markdown("---", unsafe_allow_html=True)
+event_title = st.text_input("Event title *", placeholder="e.g. Immunology I", label_visibility="collapsed")
 st.caption("Event title")
 
 event_desc = st.text_area("Description (optional)", placeholder="Notes, agenda, links…", height=80, label_visibility="collapsed")
