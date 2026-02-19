@@ -6,7 +6,8 @@
 
 ### 1. Select whichever dates you have an event in any order you choose and time
 <img width="617" height="744" alt="image" src="https://github.com/user-attachments/assets/75d17d65-1e74-448a-bc97-75a9e9b72432" />
-<img width="607" height="608" alt="image" src="https://github.com/user-attachments/assets/ee5a040b-2f6d-4bcd-a012-c6584014b445" />
+<img width="597" height="574" alt="image" src="https://github.com/user-attachments/assets/8b6fb014-43c2-4aa1-9ba4-11ce3c0ed907" />
+
 
 ---
 
