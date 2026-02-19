@@ -1,18 +1,26 @@
+import streamlit as st
+from datetime import date, datetime, timedelta
+import calendar
+import uuid
+
+# ── Page config ──────────────────────────────────────────────────────────────
+st.set_page_config(
+    page_title="Quick Event Planner",
+    page_icon="📅",
+    layout="centered",
+    initial_sidebar_state="collapsed",
+)
 
 # ── Custom CSS ────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap');
 
-html, body, [class*="css"] {
-    font-family: 'DM Sans', sans-serif;
-}
+html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; }
 
-/* Hide Streamlit chrome */
 #MainMenu, footer, header { visibility: hidden; }
 .block-container { padding: 1rem 1rem 2rem 1rem !important; max-width: 480px !important; margin: auto; }
 
-/* Title */
 .app-title {
     font-family: 'DM Serif Display', serif;
     font-size: 2rem;
@@ -26,29 +34,13 @@ html, body, [class*="css"] {
     font-size: 0.85rem;
     margin-bottom: 1.5rem;
 }
-
-/* Month nav */
-.month-header {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 0.75rem;
-}
 .month-label {
     font-family: 'DM Serif Display', serif;
     font-size: 1.3rem;
     color: #1a1a2e;
     min-width: 160px;
     text-align: center;
-}
-
-/* Calendar grid */
-.cal-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 4px;
-    margin-bottom: 1rem;
+    padding-top: 6px;
 }
 .cal-header-cell {
     text-align: center;
@@ -59,40 +51,6 @@ html, body, [class*="css"] {
     text-transform: uppercase;
     letter-spacing: 0.05em;
 }
-.cal-cell {
-    aspect-ratio: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    font-size: 0.9rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    border: none;
-    background: none;
-    width: 100%;
-    color: #1a1a2e;
-}
-.cal-cell:hover { background: #e8e0ff; }
-.cal-cell.selected {
-    background: #6c47ff !important;
-    color: white !important;
-    font-weight: 700;
-    box-shadow: 0 2px 8px rgba(108,71,255,0.4);
-}
-.cal-cell.today {
-    border: 2px solid #6c47ff;
-    color: #6c47ff;
-    font-weight: 700;
-}
-.cal-cell.today.selected {
-    border: 2px solid #6c47ff;
-    color: white;
-}
-.cal-cell.empty { cursor: default; }
-
-/* Selected dates pills */
 .dates-container {
     display: flex;
     flex-wrap: wrap;
@@ -107,8 +65,6 @@ html, body, [class*="css"] {
     font-size: 0.78rem;
     font-weight: 600;
 }
-
-/* Section labels */
 .section-label {
     font-size: 0.75rem;
     font-weight: 600;
@@ -118,8 +74,6 @@ html, body, [class*="css"] {
     margin-bottom: 0.3rem;
     margin-top: 0.8rem;
 }
-
-/* Export button */
 .stDownloadButton > button {
     background: linear-gradient(135deg, #6c47ff, #a678ff) !important;
     color: white !important;
@@ -131,13 +85,9 @@ html, body, [class*="css"] {
     width: 100% !important;
     font-family: 'DM Sans', sans-serif !important;
     box-shadow: 0 4px 15px rgba(108,71,255,0.35) !important;
-    letter-spacing: 0.02em !important;
 }
-
-/* Streamlit inputs */
 .stTextInput > div > div > input,
-.stTextArea > div > div > textarea,
-.stTimeInput > div > div > input {
+.stTextArea > div > div > textarea {
     border-radius: 10px !important;
     border: 1.5px solid #e0d9ff !important;
     font-family: 'DM Sans', sans-serif !important;
@@ -147,10 +97,28 @@ html, body, [class*="css"] {
     border-color: #6c47ff !important;
     box-shadow: 0 0 0 2px rgba(108,71,255,0.15) !important;
 }
-
-/* Checkbox */
-.stCheckbox label { font-size: 0.9rem !important; }
-
+section[data-testid="column"] .stButton button {
+    border-radius: 50% !important;
+    padding: 0 !important;
+    min-height: 38px !important;
+    font-size: 0.85rem !important;
+    font-weight: 500 !important;
+    font-family: 'DM Sans', sans-serif !important;
+}
+section[data-testid="column"] .stButton button[kind="primary"] {
+    background: linear-gradient(135deg, #6c47ff, #a678ff) !important;
+    border: none !important;
+    box-shadow: 0 2px 8px rgba(108,71,255,0.4) !important;
+}
+section[data-testid="column"] .stButton button[kind="secondary"] {
+    background: transparent !important;
+    border: 1px solid #e5e0ff !important;
+    color: #1a1a2e !important;
+}
+section[data-testid="column"] .stButton button[kind="secondary"]:hover {
+    background: #ede9ff !important;
+    border-color: #6c47ff !important;
+}
 div[data-testid="stHorizontalBlock"] > div { padding: 0 2px !important; }
 </style>
 """, unsafe_allow_html=True)
@@ -179,7 +147,8 @@ def build_ics(dates, title, description, location, start_time, end_time, all_day
         lines.append(f"UID:{uid}")
         lines.append(f"SUMMARY:{title}")
         if description:
-            lines.append(f"DESCRIPTION:{description.replace(chr(10), '\\n')}")
+            desc_escaped = description.replace("\n", "\\n")
+            lines.append(f"DESCRIPTION:{desc_escaped}")
         if location:
             lines.append(f"LOCATION:{location}")
         dtstamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
@@ -227,14 +196,12 @@ with col_next:
 year = st.session_state.view_year
 month = st.session_state.view_month
 
-# Day-of-week headers
 day_names = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
 header_cols = st.columns(7)
 for i, d in enumerate(day_names):
     with header_cols[i]:
         st.markdown(f'<div class="cal-header-cell">{d}</div>', unsafe_allow_html=True)
 
-# Calendar days
 cal = calendar.monthcalendar(year, month)
 for week in cal:
     week_cols = st.columns(7)
@@ -245,17 +212,9 @@ for week in cal:
             else:
                 d = date(year, month, day_num)
                 is_selected = d in st.session_state.selected_dates
-                is_today = d == today
-                label = str(day_num)
-                # Style via button label with emoji indicator
-                btn_label = f"**{label}**" if is_selected else label
-                btn_type = "primary" if is_selected else ("secondary" if is_today else "secondary")
-                
-                # Use a compact button
-                btn_key = f"day_{year}_{month}_{day_num}"
                 clicked = st.button(
-                    label,
-                    key=btn_key,
+                    str(day_num),
+                    key=f"day_{year}_{month}_{day_num}",
                     use_container_width=True,
                     type="primary" if is_selected else "secondary",
                 )
@@ -266,42 +225,6 @@ for week in cal:
                         st.session_state.selected_dates.add(d)
                     st.rerun()
 
-# Override button styles for the calendar
-st.markdown("""
-<style>
-/* Make calendar day buttons circular & compact */
-section[data-testid="column"] .stButton button {
-    border-radius: 50% !important;
-    padding: 0 !important;
-    min-height: 38px !important;
-    font-size: 0.85rem !important;
-    font-weight: 500 !important;
-    font-family: 'DM Sans', sans-serif !important;
-}
-/* Primary (selected) state */
-section[data-testid="column"] .stButton button[kind="primary"] {
-    background: linear-gradient(135deg, #6c47ff, #a678ff) !important;
-    border: none !important;
-    box-shadow: 0 2px 8px rgba(108,71,255,0.4) !important;
-}
-/* Secondary state */
-section[data-testid="column"] .stButton button[kind="secondary"] {
-    background: transparent !important;
-    border: 1px solid #e5e0ff !important;
-    color: #1a1a2e !important;
-}
-section[data-testid="column"] .stButton button[kind="secondary"]:hover {
-    background: #ede9ff !important;
-    border-color: #6c47ff !important;
-}
-/* Nav buttons - override circular style */
-button[data-testid="baseButton-secondary"][id*="prev_month"],
-button[data-testid="baseButton-secondary"][id*="next_month"] {
-    border-radius: 10px !important;
-}
-</style>
-""", unsafe_allow_html=True)
-
 # ── Selected dates display ─────────────────────────────────────────────────────
 if st.session_state.selected_dates:
     sorted_dates = sorted(st.session_state.selected_dates)
@@ -311,7 +234,6 @@ if st.session_state.selected_dates:
     pills_html += '</div>'
     st.markdown(f'<div class="section-label">✓ {len(sorted_dates)} date{"s" if len(sorted_dates)>1 else ""} selected</div>', unsafe_allow_html=True)
     st.markdown(pills_html, unsafe_allow_html=True)
-    
     if st.button("🗑 Clear all dates", use_container_width=False):
         st.session_state.selected_dates.clear()
         st.rerun()
