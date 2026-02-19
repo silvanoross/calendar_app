@@ -1,15 +1,3 @@
-import streamlit as st
-from datetime import date, datetime, timedelta
-import calendar
-import uuid
-
-# ── Page config ──────────────────────────────────────────────────────────────
-st.set_page_config(
-    page_title="Quick Event Planner",
-    page_icon="📅",
-    layout="centered",
-    initial_sidebar_state="collapsed",
-)
 
 # ── Custom CSS ────────────────────────────────────────────────────────────────
 st.markdown("""
@@ -40,16 +28,28 @@ html, body, [class*="css"] {
 }
 
 /* Month nav */
+.month-header {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+}
 .month-label {
     font-family: 'DM Serif Display', serif;
     font-size: 1.3rem;
     color: #1a1a2e;
     min-width: 160px;
     text-align: center;
-    padding-top: 6px;
 }
 
-/* Calendar day-of-week headers */
+/* Calendar grid */
+.cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    margin-bottom: 1rem;
+}
 .cal-header-cell {
     text-align: center;
     font-size: 0.7rem;
@@ -59,6 +59,38 @@ html, body, [class*="css"] {
     text-transform: uppercase;
     letter-spacing: 0.05em;
 }
+.cal-cell {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border: none;
+    background: none;
+    width: 100%;
+    color: #1a1a2e;
+}
+.cal-cell:hover { background: #e8e0ff; }
+.cal-cell.selected {
+    background: #6c47ff !important;
+    color: white !important;
+    font-weight: 700;
+    box-shadow: 0 2px 8px rgba(108,71,255,0.4);
+}
+.cal-cell.today {
+    border: 2px solid #6c47ff;
+    color: #6c47ff;
+    font-weight: 700;
+}
+.cal-cell.today.selected {
+    border: 2px solid #6c47ff;
+    color: white;
+}
+.cal-cell.empty { cursor: default; }
 
 /* Selected dates pills */
 .dates-container {
@@ -104,7 +136,8 @@ html, body, [class*="css"] {
 
 /* Streamlit inputs */
 .stTextInput > div > div > input,
-.stTextArea > div > div > textarea {
+.stTextArea > div > div > textarea,
+.stTimeInput > div > div > input {
     border-radius: 10px !important;
     border: 1.5px solid #e0d9ff !important;
     font-family: 'DM Sans', sans-serif !important;
@@ -115,48 +148,12 @@ html, body, [class*="css"] {
     box-shadow: 0 0 0 2px rgba(108,71,255,0.15) !important;
 }
 
-/* Make calendar day buttons circular & compact */
-section[data-testid="column"] .stButton button {
-    border-radius: 50% !important;
-    padding: 0 !important;
-    min-height: 38px !important;
-    font-size: 0.85rem !important;
-    font-weight: 500 !important;
-    font-family: 'DM Sans', sans-serif !important;
-}
-section[data-testid="column"] .stButton button[kind="primary"] {
-    background: linear-gradient(135deg, #6c47ff, #a678ff) !important;
-    border: none !important;
-    box-shadow: 0 2px 8px rgba(108,71,255,0.4) !important;
-}
-section[data-testid="column"] .stButton button[kind="secondary"] {
-    background: transparent !important;
-    border: 1px solid #e5e0ff !important;
-    color: #1a1a2e !important;
-}
-section[data-testid="column"] .stButton button[kind="secondary"]:hover {
-    background: #ede9ff !important;
-    border-color: #6c47ff !important;
-}
+/* Checkbox */
+.stCheckbox label { font-size: 0.9rem !important; }
 
 div[data-testid="stHorizontalBlock"] > div { padding: 0 2px !important; }
 </style>
 """, unsafe_allow_html=True)
-
-# ── Color options ──────────────────────────────────────────────────────────────
-# label → (iCal COLOR keyword, hex for Apple Calendar)
-COLOR_MAP = {
-    "🔴 Red":      ("red",      "#FF3B30"),
-    "🟠 Orange":   ("orange",   "#FF9500"),
-    "🟡 Yellow":   ("yellow",   "#FFCC00"),
-    "🟢 Green":    ("green",    "#34C759"),
-    "🔵 Blue":     ("blue",     "#007AFF"),
-    "🟣 Purple":   ("purple",   "#AF52DE"),
-    "🩷 Pink":     ("pink",     "#FF2D55"),
-    "🩶 Gray":     ("gray",     "#8E8E93"),
-    "🤎 Brown":    ("brown",    "#A2845E"),
-    "⬜ None":     ("",         ""),
-}
 
 # ── Session state ──────────────────────────────────────────────────────────────
 today = date.today()
@@ -166,12 +163,9 @@ if "view_year" not in st.session_state:
     st.session_state.view_year = today.year
 if "view_month" not in st.session_state:
     st.session_state.view_month = today.month
-if "event_color" not in st.session_state:
-    st.session_state.event_color = "🔵 Blue"
 
 # ── ICS builder ───────────────────────────────────────────────────────────────
-def build_ics(dates, title, description, location, start_time, end_time, all_day, color_name):
-    color_keyword, color_hex = COLOR_MAP.get(color_name, ("", ""))
+def build_ics(dates, title, description, location, start_time, end_time, all_day):
     lines = [
         "BEGIN:VCALENDAR",
         "VERSION:2.0",
@@ -185,14 +179,9 @@ def build_ics(dates, title, description, location, start_time, end_time, all_day
         lines.append(f"UID:{uid}")
         lines.append(f"SUMMARY:{title}")
         if description:
-            desc_escaped = description.replace("\n", "\\n")
-            lines.append(f"DESCRIPTION:{desc_escaped}")
+            lines.append(f"DESCRIPTION:{description.replace(chr(10), '\\n')}")
         if location:
             lines.append(f"LOCATION:{location}")
-        if color_keyword:
-            # COLOR is RFC 7986 standard; X-APPLE-CALENDAR-COLOR for Apple Calendar
-            lines.append(f"COLOR:{color_keyword}")
-            lines.append(f"X-APPLE-CALENDAR-COLOR:{color_hex}")
         dtstamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
         lines.append(f"DTSTAMP:{dtstamp}")
         if all_day:
@@ -238,12 +227,14 @@ with col_next:
 year = st.session_state.view_year
 month = st.session_state.view_month
 
+# Day-of-week headers
 day_names = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
 header_cols = st.columns(7)
 for i, d in enumerate(day_names):
     with header_cols[i]:
         st.markdown(f'<div class="cal-header-cell">{d}</div>', unsafe_allow_html=True)
 
+# Calendar days
 cal = calendar.monthcalendar(year, month)
 for week in cal:
     week_cols = st.columns(7)
@@ -254,9 +245,16 @@ for week in cal:
             else:
                 d = date(year, month, day_num)
                 is_selected = d in st.session_state.selected_dates
+                is_today = d == today
+                label = str(day_num)
+                # Style via button label with emoji indicator
+                btn_label = f"**{label}**" if is_selected else label
+                btn_type = "primary" if is_selected else ("secondary" if is_today else "secondary")
+                
+                # Use a compact button
                 btn_key = f"day_{year}_{month}_{day_num}"
                 clicked = st.button(
-                    str(day_num),
+                    label,
                     key=btn_key,
                     use_container_width=True,
                     type="primary" if is_selected else "secondary",
@@ -268,6 +266,42 @@ for week in cal:
                         st.session_state.selected_dates.add(d)
                     st.rerun()
 
+# Override button styles for the calendar
+st.markdown("""
+<style>
+/* Make calendar day buttons circular & compact */
+section[data-testid="column"] .stButton button {
+    border-radius: 50% !important;
+    padding: 0 !important;
+    min-height: 38px !important;
+    font-size: 0.85rem !important;
+    font-weight: 500 !important;
+    font-family: 'DM Sans', sans-serif !important;
+}
+/* Primary (selected) state */
+section[data-testid="column"] .stButton button[kind="primary"] {
+    background: linear-gradient(135deg, #6c47ff, #a678ff) !important;
+    border: none !important;
+    box-shadow: 0 2px 8px rgba(108,71,255,0.4) !important;
+}
+/* Secondary state */
+section[data-testid="column"] .stButton button[kind="secondary"] {
+    background: transparent !important;
+    border: 1px solid #e5e0ff !important;
+    color: #1a1a2e !important;
+}
+section[data-testid="column"] .stButton button[kind="secondary"]:hover {
+    background: #ede9ff !important;
+    border-color: #6c47ff !important;
+}
+/* Nav buttons - override circular style */
+button[data-testid="baseButton-secondary"][id*="prev_month"],
+button[data-testid="baseButton-secondary"][id*="next_month"] {
+    border-radius: 10px !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # ── Selected dates display ─────────────────────────────────────────────────────
 if st.session_state.selected_dates:
     sorted_dates = sorted(st.session_state.selected_dates)
@@ -277,6 +311,7 @@ if st.session_state.selected_dates:
     pills_html += '</div>'
     st.markdown(f'<div class="section-label">✓ {len(sorted_dates)} date{"s" if len(sorted_dates)>1 else ""} selected</div>', unsafe_allow_html=True)
     st.markdown(pills_html, unsafe_allow_html=True)
+    
     if st.button("🗑 Clear all dates", use_container_width=False):
         st.session_state.selected_dates.clear()
         st.rerun()
@@ -296,38 +331,6 @@ st.caption("Description (optional)")
 event_location = st.text_input("Location (optional)", placeholder="Room 3B / Zoom / etc.", label_visibility="collapsed")
 st.caption("Location (optional)")
 
-# ── Color picker ───────────────────────────────────────────────────────────────
-st.markdown('<div class="section-label">Event Color</div>', unsafe_allow_html=True)
-
-color_labels = list(COLOR_MAP.keys())
-color_cols = st.columns(len(color_labels))
-for i, label in enumerate(color_labels):
-    with color_cols[i]:
-        is_active = st.session_state.event_color == label
-        if st.button(
-            label.split()[0],       # just the emoji
-            key=f"color_{i}",
-            use_container_width=True,
-            type="primary" if is_active else "secondary",
-            help=label,
-        ):
-            st.session_state.event_color = label
-            st.rerun()
-
-# Show selected color label with dot
-_, color_hex = COLOR_MAP[st.session_state.event_color]
-dot = (
-    f'<span style="display:inline-block;width:10px;height:10px;border-radius:50%;'
-    f'background:{color_hex};margin-right:5px;vertical-align:middle;"></span>'
-    if color_hex else ""
-)
-st.markdown(
-    f'<div style="font-size:0.8rem;color:#888;margin-top:4px;">{dot}{st.session_state.event_color}</div>',
-    unsafe_allow_html=True,
-)
-
-# ── Time options ───────────────────────────────────────────────────────────────
-st.markdown('<div style="margin-top:0.8rem;"></div>', unsafe_allow_html=True)
 all_day = st.checkbox("All-day event", value=True)
 
 if not all_day:
@@ -354,7 +357,6 @@ if ready:
         start_time,
         end_time,
         all_day,
-        st.session_state.event_color,
     )
     n = len(st.session_state.selected_dates)
     st.download_button(
