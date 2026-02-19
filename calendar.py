@@ -244,14 +244,14 @@ else:
 st.divider()
 st.markdown('<div class="section-label">Event Details</div>', unsafe_allow_html=True)
 st.markdown("---", unsafe_allow_html=True)
-event_title = st.text_input("Event title *", placeholder="e.g. Immunology I", label_visibility="collapsed")
 st.caption("Event title")
+event_title = st.text_input("Event title *", placeholder="e.g. Immunology I", label_visibility="collapsed")
 
-event_desc = st.text_area("Description (optional)", placeholder="Notes, agenda, links…", height=80, label_visibility="collapsed")
 st.caption("Description (optional)")
+event_desc = st.text_area("Description (optional)", placeholder="Notes, agenda, links…", height=80, label_visibility="collapsed")
 
-event_location = st.text_input("Location (optional)", placeholder="Room 3B / Zoom / etc.", label_visibility="collapsed")
 st.caption("Location (optional)")
+event_location = st.text_input("Location (optional)", placeholder="Room 3B / Zoom / etc.", label_visibility="collapsed")
 
 all_day = st.checkbox("All-day event", value=True)
 
