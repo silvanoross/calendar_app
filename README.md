@@ -4,7 +4,7 @@
 
 ### 1) Select whichever dates you have an event in any order you choose and time
 <img width="617" height="744" alt="image" src="https://github.com/user-attachments/assets/75d17d65-1e74-448a-bc97-75a9e9b72432" />
-<img width="589" height="712" alt="image" src="https://github.com/user-attachments/assets/070ff1cb-d1a3-4b91-a0df-afd3bb8cc26c" />
+<img width="607" height="608" alt="image" src="https://github.com/user-attachments/assets/ee5a040b-2f6d-4bcd-a012-c6584014b445" />
 
 ### 2) Export as ".ics" file
 <img width="619" height="97" alt="image" src="https://github.com/user-attachments/assets/d4dd7ae9-1eea-4f6a-9d98-90a59c3bcafd" />
